@@ -50,29 +50,30 @@ void signalHandler()
     signal(SIGINT, signalHandler); 
     printf("\nBye!\n"); 
     fflush(stdout);
+    XTestFakeKeyEvent(disp, XKeysymToKeycode(disp, XK_Shift_L), False, None);
     closeDisplay();
     exit(EXIT_SUCCESS);
 }
 
-void keyPress(int sec, Display* d)
+void keyPress(int sec)
 {
-    uint keyCode = XKeysymToKeycode(d, XK_Shift_L);
+    uint keyCode = XKeysymToKeycode(disp, XK_Shift_L);
 
     while (!STOP_SIGNAL)
     {
-        XTestFakeKeyEvent(d, keyCode, True, None);
+        XTestFakeKeyEvent(disp, keyCode, True, None);
         usleep(sec * MICRO_SEC);
-        XTestFakeKeyEvent(d, keyCode, False, None);
-        XFlush(d);
+        XTestFakeKeyEvent(disp, keyCode, False, None);
+        XFlush(disp);
     }
 }
 
-void buggyPointer(int sec, Display* d, Window w)
+void buggyPointer(int sec, Window w)
 {
     Screen *screen;
     XEvent event;
 
-    screen = ScreenOfDisplay(d, 0);
+    screen = ScreenOfDisplay(disp, 0);
 
     while (!STOP_SIGNAL)
     {
@@ -81,12 +82,12 @@ void buggyPointer(int sec, Display* d, Window w)
             int x = rand() % screen->width - -screen->height;
             int y = rand() % -screen->width - screen->height;
  
-            XWarpPointer(d, None, w, 0, 0, 0, 0, x, y);
+            XWarpPointer(disp, None, w, 0, 0, 0, 0, x, y);
             usleep(sec * MILLI_SEC);
         }
 
-        XFlush(d); 
-        XNextEvent(d, &event);
+        XFlush(disp); 
+        XNextEvent(disp, &event);
     }
 }
 
@@ -116,10 +117,10 @@ int main(int argc, char *argv[])
                 closeDisplay();
                 exit(EXIT_SUCCESS);
             case 'k':
-                keyPress(59, disp);
+                keyPress(59);
                 break;
             case 'b':
-                buggyPointer(7, disp, root_window);
+                buggyPointer(7, root_window);
                 break;
             case 'v':
                 fprintf(stderr, "%s-%s\n", argv[0], VERSION);

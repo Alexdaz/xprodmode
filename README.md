@@ -11,7 +11,7 @@ Press the left shift key every 59 seconds or move the cursor in random places of
  - GNU Make
  - c library supporting c99
  - libx11
- - libxext6
+ - libxtst
  
 ## Usage
 ```

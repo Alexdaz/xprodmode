@@ -1,12 +1,12 @@
-VERSION = 0.1.0
+VERSION = 0.2.0
 
 CC = cc
 
 STD =
 
-CFLAGS = ${STD} -Wall -fmax-errors=10 -Wextra -pedantic -march=native
+CFLAGS = ${STD} -Wall -fmax-errors=10 -Wextra -Werror -Wpedantic -march=native
 
-DEBUG = ${STD} -Wall -fmax-errors=10 -Wextra -pedantic -g -O0
+DEBUG = ${STD} -Wall -fmax-errors=10 -Wextra -Werror -Wpedantic -g -O0
 
 #libs required
 LIBS = -lX11 -lXtst

@@ -1,13 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include <unistd.h>
 #include <getopt.h>
 #include <signal.h> 
+#include <time.h>
 
 #include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/Xatom.h>
 #include <X11/keysym.h>
 
 #include <X11/extensions/XTest.h>
@@ -17,6 +14,7 @@
 #define MICRO_SEC 1000000
 
 typedef unsigned int uint;
+typedef unsigned char tiny;
 
 static Display *disp;
 
@@ -27,6 +25,17 @@ struct option long_options[] = {
     { "version", no_argument, 0, 'v' },
     { 0, 0, 0, 0 }
 };
+
+int psleep(tiny timeAmount, char device)
+{
+   struct timespec rem;
+   struct timespec req = {
+        device == 'm' ? (int)(timeAmount / MILLI_SEC) : timeAmount,
+        (timeAmount % MILLI_SEC) * MICRO_SEC
+   };
+
+   return nanosleep(&req, &rem);
+}
 
 void printHelp()
 {
@@ -62,7 +71,7 @@ void keyPress(int sec)
     while (!STOP_SIGNAL)
     {
         XTestFakeKeyEvent(disp, keyCode, True, None);
-        usleep(sec * MICRO_SEC);
+        psleep(sec, 'k');
         XTestFakeKeyEvent(disp, keyCode, False, None);
         XFlush(disp);
     }
@@ -83,7 +92,7 @@ void buggyPointer(int sec, Window w)
             int y = rand() % -screen->width - screen->height;
  
             XWarpPointer(disp, None, w, 0, 0, 0, 0, x, y);
-            usleep(sec * MILLI_SEC);
+            psleep(sec, 'm');
         }
 
         XFlush(disp); 

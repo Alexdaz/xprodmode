@@ -13,6 +13,9 @@
 #define MILLI_SEC 1000
 #define MICRO_SEC 1000000
 
+#define KEY_PRESS_INTERVAL 59
+#define BUGGY_POINTER_INTERVAL 7
+
 typedef unsigned int uint;
 typedef unsigned char tiny;
 
@@ -26,15 +29,13 @@ struct option long_options[] = {
     { 0, 0, 0, 0 }
 };
 
-int psleep(tiny timeAmount, char device)
+void psleep(int* ms)
 {
-   struct timespec rem;
-   struct timespec req = {
-        device == 'm' ? (int)(timeAmount / MILLI_SEC) : timeAmount,
-        (timeAmount % MILLI_SEC) * MICRO_SEC
-   };
-
-   return nanosleep(&req, &rem);
+    struct timespec req = {
+        *ms / MILLI_SEC,
+        (*ms % MILLI_SEC) * MICRO_SEC
+    };
+    nanosleep(&req, NULL);
 }
 
 void printHelp()
@@ -51,38 +52,36 @@ void printHelp()
 
 void closeDisplay()
 {
-    XCloseDisplay(disp);
+    if (disp) 
+    {
+        XCloseDisplay(disp);
+    }
 }
 
 void signalHandler() 
 { 
-    signal(SIGINT, signalHandler); 
     printf("\nBye!\n"); 
-    fflush(stdout);
     XTestFakeKeyEvent(disp, XKeysymToKeycode(disp, XK_Shift_L), False, None);
     closeDisplay();
     exit(EXIT_SUCCESS);
 }
 
-void keyPress(int sec)
+void keyPress(int msec)
 {
     uint keyCode = XKeysymToKeycode(disp, XK_Shift_L);
 
     while (!STOP_SIGNAL)
     {
         XTestFakeKeyEvent(disp, keyCode, True, None);
-        psleep(sec, 'k');
+        psleep(&msec);
         XTestFakeKeyEvent(disp, keyCode, False, None);
         XFlush(disp);
     }
 }
 
-void buggyPointer(int sec, Window w)
+void buggyPointer(int msec, Window* w)
 {
-    Screen *screen;
-    XEvent event;
-
-    screen = ScreenOfDisplay(disp, 0);
+    Screen *screen = ScreenOfDisplay(disp, 0);
 
     while (!STOP_SIGNAL)
     {
@@ -91,12 +90,11 @@ void buggyPointer(int sec, Window w)
             int x = rand() % screen->width - -screen->height;
             int y = rand() % -screen->width - screen->height;
  
-            XWarpPointer(disp, None, w, 0, 0, 0, 0, x, y);
-            psleep(sec, 'm');
+            XWarpPointer(disp, None, *w, 0, 0, 0, 0, x, y);
+            psleep(&msec);
         }
 
         XFlush(disp); 
-        XNextEvent(disp, &event);
     }
 }
 
@@ -126,10 +124,10 @@ int main(int argc, char *argv[])
                 closeDisplay();
                 exit(EXIT_SUCCESS);
             case 'k':
-                keyPress(59);
+                keyPress(KEY_PRESS_INTERVAL * MILLI_SEC);
                 break;
             case 'b':
-                buggyPointer(7, root_window);
+                buggyPointer(BUGGY_POINTER_INTERVAL, &root_window);
                 break;
             case 'v':
                 fprintf(stderr, "%s-%s\n", argv[0], VERSION);

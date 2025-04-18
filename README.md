@@ -4,7 +4,7 @@
 
 A pretty small program to make you pretty productive, if you know what I mean * wink  wink *.
 
-Press the left shift key every 59 seconds or move the cursor in random places of the screen like other [software](https://www.zhornsoftware.co.uk/caffeine/) can do. This works for *NIX like OS.
+Press the F15 key every 59 seconds or move the cursor in random places of the screen like other [software](https://www.zhornsoftware.co.uk/caffeine/) can do. This works for *NIX like OS.
 
 ## Dependencies
 

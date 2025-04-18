@@ -6,20 +6,17 @@
 
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
+#include <X11/XKBlib.h>
 
 #include <X11/extensions/XTest.h>
 
-#define STOP_SIGNAL False
 #define MILLI_SEC 1000
 #define MICRO_SEC 1000000
 
 #define KEY_PRESS_INTERVAL 59
 #define BUGGY_POINTER_INTERVAL 7
 
-typedef unsigned int uint;
-typedef unsigned char tiny;
-
-static Display *disp;
+static Bool stopSignal = False;
 
 struct option long_options[] = {
     { "help"   , no_argument, 0, 'h' },
@@ -45,64 +42,105 @@ void printHelp()
     "\n"
     "Options:\n"
     "  -h, --help    \t print this help message\n"
-    "  -k, --key     \t press shift_l key every 59 seconds\n"
+    "  -k, --key     \t press F15 key every 59 seconds\n"
     "  -b, --buggy   \t activate the buggy pointer\n"
     "  -v, --version \t print program version\n");
 }
 
-void closeDisplay()
-{
-    if (disp) 
-    {
-        XCloseDisplay(disp);
-    }
-}
-
 void signalHandler() 
 { 
+    stopSignal = True;
     printf("\nBye!\n"); 
-    XTestFakeKeyEvent(disp, XKeysymToKeycode(disp, XK_Shift_L), False, None);
-    closeDisplay();
-    exit(EXIT_SUCCESS);
 }
 
-void keyPress(int msec)
+KeyCode getKeyCode(Display* d) 
 {
-    uint keyCode = XKeysymToKeycode(disp, XK_Shift_L);
+    int minKeycode, maxKeycode;
+    XDisplayKeycodes(d, &minKeycode, &maxKeycode);
 
-    while (!STOP_SIGNAL)
+    int fEmptykc = -1;
+
+    for (int keycode = (minKeycode > 10 ? minKeycode : 11); keycode <= maxKeycode; keycode++)
     {
-        XTestFakeKeyEvent(disp, keyCode, True, None);
-        psleep(&msec);
-        XTestFakeKeyEvent(disp, keyCode, False, None);
-        XFlush(disp);
+        KeySym keysym = XkbKeycodeToKeysym(d, keycode, 0, 0);
+
+        if (keysym == NoSymbol) 
+        {
+            fEmptykc = keycode;
+            break;
+        }
+    }
+
+    if (fEmptykc != -1) 
+    {
+        return fEmptykc;
+    } 
+    else 
+    {
+        return NoSymbol;
     }
 }
 
-void buggyPointer(int msec, Window* w)
+void keyPress(int msec, Display* d)
 {
-    Screen *screen = ScreenOfDisplay(disp, 0);
+    KeySym noSym = NoSymbol;
 
-    while (!STOP_SIGNAL)
+    KeyCode keyCode = XKeysymToKeycode(d, XK_F15);
+
+    if (keyCode == 0) 
     {
-        while (!STOP_SIGNAL) 
+        KeyCode new_keycode = getKeyCode(d);
+
+        KeySym f15Keysym = XK_F15;
+
+        XChangeKeyboardMapping(d, new_keycode, 1, &f15Keysym, 1);
+        XFlush(d);
+
+        keyCode = new_keycode;
+    }
+
+    while (!stopSignal)
+    {
+        XTestFakeKeyEvent(d, keyCode, True, None);
+        psleep(&msec);
+        XTestFakeKeyEvent(d, keyCode, False, None);
+        XFlush(d);
+    }
+
+    XTestFakeKeyEvent(d, keyCode, False, None);
+    XChangeKeyboardMapping(d, keyCode, 1, &noSym, 1);
+
+    XFlush(d);
+
+    XCloseDisplay(d);
+}
+
+void buggyPointer(int msec, Window* w, Display* d)
+{
+    Screen *screen = ScreenOfDisplay(d, 0);
+
+    while (!stopSignal)
+    {
+        while (!stopSignal) 
         {
             int x = rand() % screen->width - -screen->height;
             int y = rand() % -screen->width - screen->height;
  
-            XWarpPointer(disp, None, *w, 0, 0, 0, 0, x, y);
+            XWarpPointer(d, None, *w, 0, 0, 0, 0, x, y);
             psleep(&msec);
         }
 
-        XFlush(disp); 
+        XFlush(d); 
     }
+
+    XCloseDisplay(d);
 }
 
 int main(int argc, char *argv[])
 {
     signal(SIGINT, signalHandler); 
 
-    disp = XOpenDisplay(NULL);
+    Display *disp = XOpenDisplay(NULL);
 
     Window root_window;
 
@@ -121,29 +159,31 @@ int main(int argc, char *argv[])
         {
             case 'h':
                 printHelp();
-                closeDisplay();
+                XCloseDisplay(disp);
                 exit(EXIT_SUCCESS);
             case 'k':
-                keyPress(KEY_PRESS_INTERVAL * MILLI_SEC);
+                keyPress(KEY_PRESS_INTERVAL * MILLI_SEC, disp);
+                exit(EXIT_SUCCESS);
                 break;
             case 'b':
-                buggyPointer(BUGGY_POINTER_INTERVAL, &root_window);
+                buggyPointer(BUGGY_POINTER_INTERVAL, &root_window, disp);
+                exit(EXIT_SUCCESS);
                 break;
             case 'v':
                 fprintf(stderr, "%s-%s\n", argv[0], VERSION);
-                closeDisplay();
+                XCloseDisplay(disp);
                 exit(EXIT_SUCCESS);
             case '?':
                 printHelp();
-                closeDisplay();
+                XCloseDisplay(disp);
                 exit(EXIT_FAILURE);
             default:
-                closeDisplay();
+                XCloseDisplay(disp);
                 return EXIT_SUCCESS;
         }
     }
 
-    closeDisplay();
+    XCloseDisplay(disp);
 
     return EXIT_SUCCESS;
 }
